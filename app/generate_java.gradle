@@ -1,0 +1,252 @@
+def src = 'app/src/main'
+generateSources.doLast {
+    new File("${src}/java/com/aiassistant/app").mkdirs()
+    new File("${src}/java/com/aiassistant/app/SettingsActivity.java").text = '''package com.aiassistant.app;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import android.content.SharedPreferences;
+public class SettingsActivity extends AppCompatActivity {
+    private EditText etAssembly, etGroq;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_settings);
+        etAssembly = findViewById(R.id.etAssemblyKey);
+        etGroq = findViewById(R.id.etGroqKey);
+        SharedPreferences prefs = getSharedPreferences("ai_prefs", MODE_PRIVATE);
+        etAssembly.setText(prefs.getString("assembly_key", ""));
+        etGroq.setText(prefs.getString("groq_key", ""));
+        Button btnSave = findViewById(R.id.btnSave);
+        btnSave.setOnClickListener(v -> {
+            prefs.edit()
+                .putString("assembly_key", etAssembly.getText().toString().trim())
+                .putString("groq_key", etGroq.getText().toString().trim())
+                .apply();
+            Toast.makeText(this, "Сохранено!", Toast.LENGTH_SHORT).show();
+            finish();
+        });
+    }
+}'''
+    new File("${src}/java/com/aiassistant/app/MainActivity.java").text = '''package com.aiassistant.app;
+import android.Manifest;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import okhttp3.*;
+import org.json.JSONObject;
+import java.io.*;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+public class MainActivity extends AppCompatActivity {
+    private TextView tvStatus, tvTranscript, tvResponse, tvBluetooth;
+    private Button btnMic;
+    private AudioRecord audioRecord;
+    private boolean isRecording = false;
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
+    private Handler handler = new Handler(Looper.getMainLooper());
+    private AudioManager audioManager;
+    private static final int SAMPLE_RATE = 16000;
+    private static final int CHANNEL = AudioFormat.CHANNEL_IN_MONO;
+    private static final int FORMAT = AudioFormat.ENCODING_PCM_16BIT;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        tvStatus = findViewById(R.id.tvStatus);
+        tvTranscript = findViewById(R.id.tvTranscript);
+        tvResponse = findViewById(R.id.tvResponse);
+        tvBluetooth = findViewById(R.id.tvBluetooth);
+        btnMic = findViewById(R.id.btnMic);
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        checkBluetooth();
+        ActivityCompat.requestPermissions(this,
+            new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.BLUETOOTH_CONNECT}, 1);
+        btnMic.setOnClickListener(v -> {
+            if (!isRecording) startRecording(); else stopRecording();
+        });
+        findViewById(R.id.fabSettings).setOnClickListener(v ->
+            startActivity(new Intent(this, SettingsActivity.class)));
+    }
+    private void checkBluetooth() {
+        BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
+        if (bt != null && bt.isEnabled()) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+                    == PackageManager.PERMISSION_GRANTED) {
+                Set<BluetoothDevice> devices = bt.getBondedDevices();
+                for (BluetoothDevice d : devices) {
+                    if (d.getBluetoothClass().getMajorDeviceClass() == 256) {
+                        tvBluetooth.setText("🎧 " + d.getName());
+                        return;
+                    }
+                }
+            }
+        }
+        tvBluetooth.setText("Наушники не найдены");
+    }
+    private void startRecording() {
+        SharedPreferences prefs = getSharedPreferences("ai_prefs", MODE_PRIVATE);
+        String aKey = prefs.getString("assembly_key", "");
+        String gKey = prefs.getString("groq_key", "");
+        if (aKey.isEmpty() || gKey.isEmpty()) {
+            Toast.makeText(this, "Сначала укажите API ключи в настройках", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(this, SettingsActivity.class));
+            return;
+        }
+        int bufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL, FORMAT);
+        audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
+            SAMPLE_RATE, CHANNEL, FORMAT, bufSize * 4);
+        audioRecord.startRecording();
+        isRecording = true;
+        btnMic.setText("⏹");
+        tvStatus.setText("Слушаю...");
+        tvStatus.setTextColor(getColor(R.color.status_listening));
+        executor.execute(() -> {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte[] buf = new byte[bufSize];
+            while (isRecording) {
+                int read = audioRecord.read(buf, 0, buf.length);
+                if (read > 0) baos.write(buf, 0, read);
+            }
+            byte[] pcm = baos.toByteArray();
+            byte[] wav = pcmToWav(pcm);
+            handler.post(() -> {
+                tvStatus.setText("Обрабатываю...");
+                tvStatus.setTextColor(getColor(R.color.status_processing));
+            });
+            transcribeAndRespond(wav, aKey, gKey);
+        });
+    }
+    private void stopRecording() {
+        isRecording = false;
+        btnMic.setText("🎤");
+        if (audioRecord != null) { audioRecord.stop(); audioRecord.release(); }
+    }
+    private byte[] pcmToWav(byte[] pcm) {
+        int dataLen = pcm.length;
+        int totalLen = dataLen + 44;
+        byte[] wav = new byte[totalLen];
+        int sr = SAMPLE_RATE;
+        int byteRate = sr * 2;
+        wav[0]='R';wav[1]='I';wav[2]='F';wav[3]='F';
+        intToBytes(totalLen-8, wav, 4);
+        wav[8]='W';wav[9]='A';wav[10]='V';wav[11]='E';
+        wav[12]='f';wav[13]='m';wav[14]='t';wav[15]=' ';
+        intToBytes(16, wav, 16);
+        wav[20]=1;wav[21]=0;wav[22]=1;wav[23]=0;
+        intToBytes(sr, wav, 24);
+        intToBytes(byteRate, wav, 28);
+        wav[32]=2;wav[33]=0;wav[34]=16;wav[35]=0;
+        wav[36]='d';wav[37]='a';wav[38]='t';wav[39]='a';
+        intToBytes(dataLen, wav, 40);
+        System.arraycopy(pcm, 0, wav, 44, dataLen);
+        return wav;
+    }
+    private void intToBytes(int v, byte[] b, int off) {
+        b[off]=(byte)(v);b[off+1]=(byte)(v>>8);
+        b[off+2]=(byte)(v>>16);b[off+3]=(byte)(v>>24);
+    }
+    private void transcribeAndRespond(byte[] wav, String aKey, String gKey) {
+        try {
+            OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS).build();
+            RequestBody uploadBody = RequestBody.create(wav, MediaType.parse("audio/wav"));
+            Request uploadReq = new Request.Builder()
+                .url("https://api.assemblyai.com/v2/upload")
+                .header("authorization", aKey)
+                .post(uploadBody).build();
+            Response uploadResp = client.newCall(uploadReq).execute();
+            String uploadUrl = new JSONObject(uploadResp.body().string()).getString("upload_url");
+            JSONObject transcribeJson = new JSONObject();
+            transcribeJson.put("audio_url", uploadUrl);
+            transcribeJson.put("language_code", "ru");
+            Request transcribeReq = new Request.Builder()
+                .url("https://api.assemblyai.com/v2/transcript")
+                .header("authorization", aKey)
+                .post(RequestBody.create(transcribeJson.toString(),
+                    MediaType.parse("application/json"))).build();
+            Response transcribeResp = client.newCall(transcribeReq).execute();
+            String transcriptId = new JSONObject(transcribeResp.body().string()).getString("id");
+            String text = "";
+            for (int i = 0; i < 30; i++) {
+                Thread.sleep(2000);
+                Request pollReq = new Request.Builder()
+                    .url("https://api.assemblyai.com/v2/transcript/" + transcriptId)
+                    .header("authorization", aKey).get().build();
+                Response pollResp = client.newCall(pollReq).execute();
+                JSONObject pollJson = new JSONObject(pollResp.body().string());
+                String status = pollJson.getString("status");
+                if ("completed".equals(status)) {
+                    text = pollJson.optString("text", ""); break;
+                } else if ("error".equals(status)) break;
+            }
+            final String finalText = text;
+            handler.post(() -> tvTranscript.setText(finalText));
+            if (!finalText.isEmpty()) {
+                JSONObject groqBody = new JSONObject();
+                groqBody.put("model", "llama3-8b-8192");
+                org.json.JSONArray msgs = new org.json.JSONArray();
+                JSONObject msg = new JSONObject();
+                msg.put("role", "user"); msg.put("content", finalText);
+                msgs.put(msg); groqBody.put("messages", msgs);
+                Request groqReq = new Request.Builder()
+                    .url("https://api.groq.com/openai/v1/chat/completions")
+                    .header("Authorization", "Bearer " + gKey)
+                    .post(RequestBody.create(groqBody.toString(),
+                        MediaType.parse("application/json"))).build();
+                Response groqResp = client.newCall(groqReq).execute();
+                JSONObject groqJson = new JSONObject(groqResp.body().string());
+                String answer = groqJson.getJSONArray("choices")
+                    .getJSONObject(0).getJSONObject("message").getString("content");
+                handler.post(() -> {
+                    tvResponse.setText(answer);
+                    tvStatus.setText("Говорю...");
+                    tvStatus.setTextColor(getColor(R.color.status_speaking));
+                    speak(answer);
+                });
+            } else {
+                handler.post(() -> {
+                    tvStatus.setText("Нажмите для начала");
+                    tvStatus.setTextColor(getColor(R.color.status_idle));
+                });
+            }
+        } catch (Exception e) {
+            handler.post(() -> Toast.makeText(this, "Ошибка: "+e.getMessage(), Toast.LENGTH_LONG).show());
+        }
+    }
+    private android.speech.tts.TextToSpeech tts;
+    private void speak(String text) {
+        audioManager.requestAudioFocus(null,
+            AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+        tts = new android.speech.tts.TextToSpeech(this, status -> {
+            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                tts.setLanguage(new java.util.Locale("ru"));
+                tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, null);
+            }
+        });
+    }
+    @Override protected void onDestroy() {
+        super.onDestroy();
+        if (tts != null) { tts.stop(); tts.shutdown(); }
+        executor.shutdown();
+    }
+}'''
+}
