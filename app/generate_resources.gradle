@@ -1,0 +1,77 @@
+task generateSources {
+    doLast {
+        def root = project.rootDir.absolutePath
+        def src = "${root}/app/src/main"
+
+        ["${src}/res/values",
+         "${src}/res/drawable",
+         "${src}/res/layout"].each { new File(it).mkdirs() }
+
+        new File("${src}/AndroidManifest.xml").text = '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme">
+        <activity android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".SettingsActivity"
+            android:exported="false"/>
+    </application>
+</manifest>'''
+
+        new File("${src}/res/values/colors.xml").text = '''<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="status_idle">#FF757575</color>
+    <color name="status_recording">#FFE53935</color>
+    <color name="status_processing">#FF1E88E5</color>
+    <color name="status_speaking">#FF43A047</color>
+</resources>'''
+
+        new File("${src}/res/values/strings.xml").text = '''<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AI Assistant</string>
+</resources>'''
+
+        new File("${src}/res/values/themes.xml").text = '''<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">@color/purple_500</item>
+        <item name="colorPrimaryDark">@color/purple_700</item>
+        <item name="colorAccent">@color/teal_200</item>
+    </style>
+</resources>'''
+
+        new File("${src}/res/drawable/mic_button_bg.xml").text = '''<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <solid android:color="#FF3700B3"/>
+            <size android:width="80dp" android:height="80dp"/>
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#FF6200EE"/>
+            <size android:width="80dp" android:height="80dp"/>
+        </shape>
+    </item>
+</selector>'''
+    }
+}
