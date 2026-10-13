@@ -1,0 +1,44 @@
+def root = project.rootDir.absolutePath
+def src = "${root}/app/src/main"
+generateSources.doLast {
+    new File("${src}/java/com/aiassistant/app").mkdirs()
+    new File("${src}/java/com/aiassistant/app/SettingsActivity.java").text = '''package com.aiassistant.app;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+import android.content.SharedPreferences;
+public class SettingsActivity extends AppCompatActivity {
+    private EditText etAssembly, etGroq, etModel, etPrompt;
+    private TextView tvLog;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_settings);
+        etAssembly = findViewById(R.id.etAssemblyKey);
+        etGroq = findViewById(R.id.etGroqKey);
+        etModel = findViewById(R.id.etModel);
+        etPrompt = findViewById(R.id.etPrompt);
+        tvLog = findViewById(R.id.tvLog);
+        SharedPreferences prefs = getSharedPreferences("ai_prefs", MODE_PRIVATE);
+        etAssembly.setText(prefs.getString("assembly_key", ""));
+        etGroq.setText(prefs.getString("groq_key", ""));
+        etModel.setText(prefs.getString("groq_model", "llama3-8b-8192"));
+        etPrompt.setText(prefs.getString("system_prompt", "Ты голосовой ИИ ассистент. Отвечай кратко по-русски."));
+        tvLog.setText(prefs.getString("last_error", "Ошибок нет"));
+        Button btnSave = findViewById(R.id.btnSave);
+        btnSave.setOnClickListener(v -> {
+            prefs.edit()
+                .putString("assembly_key", etAssembly.getText().toString().trim())
+                .putString("groq_key", etGroq.getText().toString().trim())
+                .putString("groq_model", etModel.getText().toString().trim())
+                .putString("system_prompt", etPrompt.getText().toString().trim())
+                .apply();
+            Toast.makeText(this, "Сохранено!", Toast.LENGTH_SHORT).show();
+            finish();
+        });
+    }
+}'''
+}
