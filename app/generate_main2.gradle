@@ -1,0 +1,89 @@
+def root = project.rootDir.absolutePath
+def src = "${root}/app/src/main"
+generateSources.doLast {
+    // append transcribeAndRespond and speak to MainActivity.java
+    new File("${src}/java/com/aiassistant/app/MainActivity.java") << '''
+    private void transcribeAndRespond(byte[] wav, String aKey, String gKey) {
+        try {
+            OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(30,java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(60,java.util.concurrent.TimeUnit.SECONDS).build();
+            Response upR = client.newCall(new Request.Builder()
+                .url("https://api.assemblyai.com/v2/upload")
+                .header("authorization",aKey)
+                .post(RequestBody.create(wav,MediaType.parse("audio/wav"))).build()).execute();
+            String upRaw = upR.body().string();
+            if (!upR.isSuccessful()) { saveError("Upload: "+upRaw); handler.post(()->tvStatus.setText("Ошибка загрузки")); return; }
+            String upUrl = new JSONObject(upRaw).getString("upload_url");
+            JSONObject tj = new JSONObject();
+            tj.put("audio_url",upUrl); tj.put("language_code","ru");
+            Response tR = client.newCall(new Request.Builder()
+                .url("https://api.assemblyai.com/v2/transcript")
+                .header("authorization",aKey)
+                .post(RequestBody.create(tj.toString(),MediaType.parse("application/json"))).build()).execute();
+            String tRaw = tR.body().string();
+            if (!tR.isSuccessful()) { saveError("STT: "+tRaw); handler.post(()->tvStatus.setText("Ошибка STT")); return; }
+            String tid = new JSONObject(tRaw).getString("id");
+            String text = "";
+            for (int i=0;i<30;i++) {
+                Thread.sleep(2000);
+                Response pR = client.newCall(new Request.Builder()
+                    .url("https://api.assemblyai.com/v2/transcript/"+tid)
+                    .header("authorization",aKey).get().build()).execute();
+                JSONObject pJ = new JSONObject(pR.body().string());
+                String st = pJ.getString("status");
+                if ("completed".equals(st)) { text=pJ.optString("text",""); break; }
+                else if ("error".equals(st)) { saveError("STT err: "+pJ.optString("error","")); break; }
+            }
+            final String ft = text;
+            handler.post(()->tvTranscript.setText(ft));
+            if (!ft.isEmpty()) {
+                SharedPreferences pr = getSharedPreferences("ai_prefs",MODE_PRIVATE);
+                JSONObject gb = new JSONObject();
+                gb.put("model",pr.getString("groq_model","llama3-8b-8192"));
+                org.json.JSONArray msgs = new org.json.JSONArray();
+                JSONObject sys = new JSONObject(); sys.put("role","system"); sys.put("content",pr.getString("system_prompt","Отвечай кратко по-русски.")); msgs.put(sys);
+                JSONObject um = new JSONObject(); um.put("role","user"); um.put("content",ft); msgs.put(um);
+                gb.put("messages",msgs);
+                Response gR = client.newCall(new Request.Builder()
+                    .url("https://api.groq.com/openai/v1/chat/completions")
+                    .header("Authorization","Bearer "+pr.getString("groq_key",""))
+                    .post(RequestBody.create(gb.toString(),MediaType.parse("application/json"))).build()).execute();
+                String gRaw = gR.body().string();
+                if (!gR.isSuccessful()) { saveError("Groq: "+gRaw); handler.post(()->tvStatus.setText("Ошибка Groq")); return; }
+                String ans = new JSONObject(gRaw).getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content");
+                saveError("OK");
+                handler.post(()->{ tvResponse.setText(ans); tvStatus.setText("Говорю..."); tvStatus.setTextColor(getColor(R.color.status_speaking)); speak(ans); });
+            } else {
+                handler.post(()->{ tvStatus.setText("Нажмите для начала"); tvStatus.setTextColor(getColor(R.color.status_idle)); });
+            }
+        } catch(Exception e) {
+            saveError(e.getClass().getSimpleName()+": "+e.getMessage());
+            handler.post(()->Toast.makeText(this,"Ошибка: "+e.getMessage(),Toast.LENGTH_LONG).show());
+        }
+    }
+    private android.speech.tts.TextToSpeech tts;
+    private void speak(String text) {
+        audioManager.requestAudioFocus(null,AudioManager.STREAM_MUSIC,AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+        if (tts!=null){tts.stop();tts.shutdown();}
+        tts = new android.speech.tts.TextToSpeech(this, st->{
+            if(st==android.speech.tts.TextToSpeech.SUCCESS){
+                tts.setLanguage(new java.util.Locale("ru"));
+                tts.speak(text,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"u1");
+                tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener(){
+                    @Override public void onStart(String u){}
+                    @Override public void onDone(String u){handler.post(()->{ tvStatus.setText("Нажмите для начала"); tvStatus.setTextColor(getColor(R.color.status_idle)); });}
+                    @Override public void onError(String u){}
+                });
+            }
+        });
+    }
+    @Override protected void onDestroy(){
+        super.onDestroy();
+        unregisterReceiver(btReceiver);
+        if(tts!=null){tts.stop();tts.shutdown();}
+        executor.shutdown();
+    }
+}
+'''
+}
