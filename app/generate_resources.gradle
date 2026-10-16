@@ -1,8 +1,7 @@
 
 task generateSources {
     doLast {
-        def root = project.rootDir.absolutePath
-        def src = "${root}/app/src/main"
+        def src = "${project.rootDir}/app/src/main"
 
         ["${src}/res/values",
          "${src}/res/drawable",
@@ -12,16 +11,26 @@ task generateSources {
 
         new File("${src}/AndroidManifest.xml").text = '''<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="true"/>
 
     <application
         android:allowBackup="true"
         android:label="@string/app_name"
         android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"/>
 
         <activity
             android:name=".MainActivity"
@@ -31,10 +40,6 @@ task generateSources {
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".SettingsActivity"
-            android:exported="false"/>
     </application>
 </manifest>'''
 
@@ -46,17 +51,16 @@ task generateSources {
     <color name="teal_200">#FF03DAC5</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-
     <color name="status_idle">#FF757575</color>
     <color name="status_listening">#FF42A5F5</color>
-    <color name="status_recording">#FFE53935</color>
     <color name="status_processing">#FF1E88E5</color>
     <color name="status_speaking">#FF43A047</color>
+    <color name="status_printing">#FFFFA000</color>
 </resources>'''
 
         new File("${src}/res/values/strings.xml").text = '''<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">AI Assistant</string>
+    <string name="app_name">AI Voice</string>
 </resources>'''
 
         new File("${src}/res/values/themes.xml").text = '''<?xml version="1.0" encoding="utf-8"?>
@@ -76,7 +80,6 @@ task generateSources {
             <size android:width="80dp" android:height="80dp"/>
         </shape>
     </item>
-
     <item>
         <shape android:shape="oval">
             <solid android:color="#FF6200EE"/>
