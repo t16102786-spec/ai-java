@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⚙️ Настройки"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:padding="8dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingTop="12dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="AssemblyAI key (речь → текст)"
+                android:textSize="12sp"
+                android:gravity="center_vertical"/>
+            <Button
+                android:id="@+id/btnHelpAssembly"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Где взять?"
+                android:textSize="11sp"/>
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/etAssemblyKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Введите ключ AssemblyAI"
+            android:inputType="textPassword"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingTop="8dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Groq key (ИИ-ответы)"
+                android:textSize="12sp"
+                android:gravity="center_vertical"/>
+            <Button
+                android:id="@+id/btnHelpGroq"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Где взять?"
+                android:textSize="11sp"/>
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/etGroqKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="gsk_..."
+            android:inputType="textPassword"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingTop="8dp">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="FreeTTS key (озвучка, необязательно)"
+                android:textSize="12sp"
+                android:gravity="center_vertical"/>
+            <Button
+                android:id="@+id/btnHelpFreeTts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Где взять?"
+                android:textSize="11sp"/>
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/etFreeTtsKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Введите ключ FreeTTS"
+            android:inputType="textPassword"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Модель Groq"
+            android:textSize="12sp"
+            android:paddingTop="8dp"/>
+
+        <EditText
+            android:id="@+id/etModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="llama3-8b-8192"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Системная инструкция для ИИ"
+            android:textSize="12sp"
+            android:paddingTop="8dp"/>
+
+        <EditText
+            android:id="@+id/etPrompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Ты голосовой ИИ-ассистент..."
+            android:minLines="3"
+            android:gravity="top"
+            android:inputType="textMultiLine"/>
+
+        <CheckBox
+            android:id="@+id/cbAutoPrint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🖨 Печатать все ответы автоматически"
+            android:paddingTop="12dp"/>
+
+        <TextView
+            android:id="@+id/tvLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Журнал:\nОшибок нет"
+            android:textIsSelectable="true"
+            android:padding="8dp"
+            android:textSize="12sp"
+            android:paddingTop="12dp"/>
+
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="💾 Сохранить"
+            android:layout_marginTop="12dp"/>
+
+        <Button
+            android:id="@+id/btnClear"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🗑 Очистить журнал"
+            android:layout_marginTop="4dp"/>
+
+        <Button
+            android:id="@+id/btnReset"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⚠️ Сбросить все настройки"
+            android:layout_marginTop="4dp"/>
+
+    </LinearLayout>
+</ScrollView>
