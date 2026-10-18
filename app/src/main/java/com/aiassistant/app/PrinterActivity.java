@@ -170,11 +170,11 @@ public class PrinterActivity extends AppCompatActivity {
         executor.execute(() -> {
             try {
                 OutputStream out = btSocket.getOutputStream();
-                out.write(new byte[]{0x1B, 0x40});           // ESC @ сброс
-                out.write(new byte[]{0x1B, 0x61, 0x00});     // выравнивание влево
+                out.write(new byte[]{0x1B, 0x40});
+                out.write(new byte[]{0x1B, 0x61, 0x00});
                 out.write(("AI: " + text + "\n\n").getBytes("UTF-8"));
-                out.write(new byte[]{0x0A, 0x0A, 0x0A});     // отступ
-                out.write(new byte[]{0x1D, 0x56, 0x42, 0x00}); // обрезка
+                out.write(new byte[]{0x0A, 0x0A, 0x0A});
+                out.write(new byte[]{0x1D, 0x56, 0x42, 0x00});
                 out.flush();
                 handler.post(() -> {
                     tvStatus.setText("✅ Напечатано!");
@@ -228,4 +228,4 @@ public class PrinterActivity extends AppCompatActivity {
         executor.shutdown();
         try { if (btSocket != null) btSocket.close(); } catch (Exception ignored) {}
     }
-          }
+}
