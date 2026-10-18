@@ -9,7 +9,6 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.util.function.Consumer;
 
 public class TtsHelper {
 
@@ -133,4 +132,4 @@ public class TtsHelper {
                 tvStatus.setText("Ошибка озвучки. Проверь ключ и интернет."));
         }
     }
-                                                   }
+                        }
