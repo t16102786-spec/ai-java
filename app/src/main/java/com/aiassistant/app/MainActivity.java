@@ -22,8 +22,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import okhttp3.*;
-import org.json.JSONObject;
 import java.io.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -232,4 +230,4 @@ public class MainActivity extends AppCompatActivity {
         if (ttsPlayer != null) { ttsPlayer.release(); ttsPlayer = null; }
         executor.shutdown();
     }
-                                                          }
+}
