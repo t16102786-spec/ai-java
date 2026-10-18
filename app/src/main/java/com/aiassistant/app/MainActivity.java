@@ -10,9 +10,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -43,6 +45,8 @@ public class MainActivity extends AppCompatActivity {
     private static final int FORMAT = AudioFormat.ENCODING_PCM_16BIT;
     private static final int PERM_REQUEST = 1;
 
+    private UpdateHelper updateHelper;
+
     private final BroadcastReceiver btReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -64,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
 
         audioManager     = (AudioManager) getSystemService(AUDIO_SERVICE);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        updateHelper     = new UpdateHelper(this);
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
@@ -87,6 +92,9 @@ public class MainActivity extends AppCompatActivity {
 
         findViewById(R.id.btnPrinter).setOnClickListener(v ->
             startActivity(new Intent(this, PrinterActivity.class)));
+
+        findViewById(R.id.btnUpdate).setOnClickListener(v ->
+            updateHelper.checkForUpdate());
     }
 
     private void checkBluetooth() {
@@ -230,4 +238,4 @@ public class MainActivity extends AppCompatActivity {
         if (ttsPlayer != null) { ttsPlayer.release(); ttsPlayer = null; }
         executor.shutdown();
     }
-}
+            }
