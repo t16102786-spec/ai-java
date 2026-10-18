@@ -129,4 +129,4 @@ public class SettingsActivity extends AppCompatActivity {
             .setPositiveButton("OK", null)
             .show();
     }
-  }
+}
