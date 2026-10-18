@@ -1,12 +1,11 @@
-buildscript {
-    repositories { google(); mavenCentral() }
-    dependencies { classpath 'com.android.tools.build:gradle:8.3.0' }
+plugins {
+    id 'com.android.application'
 }
-apply plugin: 'com.android.application'
 
 android {
     namespace 'com.aiassistant.app'
     compileSdk 34
+
     defaultConfig {
         applicationId "com.aiassistant.app"
         minSdk 26
@@ -14,9 +13,13 @@ android {
         versionCode 1
         versionName "1.0"
     }
+
     buildTypes {
-        release { minifyEnabled false }
+        release {
+            minifyEnabled false
+        }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
