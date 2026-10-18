@@ -33,7 +33,6 @@ public class TtsHelper {
                 .readTimeout(60,  java.util.concurrent.TimeUnit.SECONDS)
                 .build();
 
-            // 1. Синтез речи
             JSONObject body = new JSONObject();
             body.put("text",  text);
             body.put("voice", "ru-RU-DmitryNeural");
@@ -61,7 +60,6 @@ public class TtsHelper {
 
             String fileId = new JSONObject(responseText).getString("file_id");
 
-            // 2. Скачать MP3
             Response audio = client.newCall(new Request.Builder()
                 .url("https://freetts.org/api/audio/" + fileId)
                 .get().build()).execute();
@@ -85,7 +83,6 @@ public class TtsHelper {
 
             final String filePath = audioFile.getAbsolutePath();
 
-            // 3. Воспроизвести
             handler.post(() -> {
                 try {
                     if (currentPlayer != null) {
@@ -132,4 +129,4 @@ public class TtsHelper {
                 tvStatus.setText("Ошибка озвучки. Проверь ключ и интернет."));
         }
     }
-                        }
+}
