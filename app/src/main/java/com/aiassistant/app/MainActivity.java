@@ -30,15 +30,15 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
-    private TextView tvStatus, tvTranscript, tvResponse, tvBluetooth;
-    private Button btnMic, btnBt;
-    private AudioRecord audioRecord;
-    private boolean isRecording = false;
-    private ExecutorService executor = Executors.newSingleThreadExecutor();
-    private Handler handler = new Handler(Looper.getMainLooper());
-    private AudioManager audioManager;
-    private BluetoothAdapter bluetoothAdapter;
-    private android.media.MediaPlayer ttsPlayer;
+    TextView tvStatus, tvTranscript, tvResponse, tvBluetooth;
+    Button btnMic, btnBt;
+    AudioRecord audioRecord;
+    boolean isRecording = false;
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Handler handler = new Handler(Looper.getMainLooper());
+    AudioManager audioManager;
+    BluetoothAdapter bluetoothAdapter;
+    android.media.MediaPlayer ttsPlayer;
 
     private static final int SAMPLE_RATE = 16000;
     private static final int CHANNEL = AudioFormat.CHANNEL_IN_MONO;
@@ -232,4 +232,4 @@ public class MainActivity extends AppCompatActivity {
         if (ttsPlayer != null) { ttsPlayer.release(); ttsPlayer = null; }
         executor.shutdown();
     }
-              }
+                                                          }
