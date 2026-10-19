@@ -1,5 +1,6 @@
 package com.aiassistant.app;
 
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Handler;
@@ -92,7 +93,10 @@ public class TtsHelper {
 
                     MediaPlayer player = new MediaPlayer();
                     playerSetter.set(player);
-                    player.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                    player.setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build());
                     player.setDataSource(filePath);
 
                     player.setOnPreparedListener(p -> {
