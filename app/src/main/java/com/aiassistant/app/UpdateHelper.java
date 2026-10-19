@@ -23,7 +23,6 @@ public class UpdateHelper {
     private static final String REPO = "t16102786-spec/ai-java";
     private static final String API_URL =
         "https://api.github.com/repos/" + REPO + "/releases/latest";
-    private static final String CURRENT_VERSION = "v2026.10.18-0000";
 
     private final Activity activity;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -69,7 +68,8 @@ public class UpdateHelper {
                     return;
                 }
 
-                if (latestTag.equals(CURRENT_VERSION)) {
+                String currentVersion = BuildConfig.VERSION_NAME;
+                if (latestTag.equals(currentVersion)) {
                     showToast("У вас актуальная версия (" + latestTag + ")");
                     return;
                 }
@@ -146,4 +146,4 @@ public class UpdateHelper {
         handler.post(() ->
             Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show());
     }
-                  }
+}
