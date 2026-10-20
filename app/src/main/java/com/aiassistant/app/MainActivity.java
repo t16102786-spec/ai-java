@@ -31,7 +31,7 @@ import java.util.concurrent.Executors;
 public class MainActivity extends AppCompatActivity {
 
     TextView tvStatus, tvTranscript, tvResponse, tvBluetooth;
-    Button btnMic, btnBt;
+    Button btnMic, btnBt, btnBranch1, btnBranch2;
     AudioRecord audioRecord;
     boolean isRecording = false;
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -45,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int FORMAT = AudioFormat.ENCODING_PCM_16BIT;
     private static final int PERM_REQUEST = 1;
 
+    private int activeBranch = 1;
     private UpdateHelper updateHelper;
 
     private final BroadcastReceiver btReceiver = new BroadcastReceiver() {
@@ -65,10 +66,12 @@ public class MainActivity extends AppCompatActivity {
         tvBluetooth  = findViewById(R.id.tvBluetooth);
         btnMic       = findViewById(R.id.btnMic);
         btnBt        = findViewById(R.id.btnBt);
+        btnBranch1   = findViewById(R.id.btnBranch1);
+        btnBranch2   = findViewById(R.id.btnBranch2);
 
-        audioManager     = (AudioManager) getSystemService(AUDIO_SERVICE);
+        audioManager  = (AudioManager) getSystemService(AUDIO_SERVICE);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        updateHelper     = new UpdateHelper(this);
+        updateHelper  = new UpdateHelper(this);
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
@@ -80,6 +83,22 @@ public class MainActivity extends AppCompatActivity {
             new String[]{Manifest.permission.RECORD_AUDIO,
                          Manifest.permission.BLUETOOTH_CONNECT},
             PERM_REQUEST);
+
+        updateBranchButtons();
+
+        btnBranch1.setOnClickListener(v -> {
+            activeBranch = 1;
+            updateBranchButtons();
+            Toast.makeText(this, "Активна: " + getBranchName(1),
+                Toast.LENGTH_SHORT).show();
+        });
+
+        btnBranch2.setOnClickListener(v -> {
+            activeBranch = 2;
+            updateBranchButtons();
+            Toast.makeText(this, "Активна: " + getBranchName(2),
+                Toast.LENGTH_SHORT).show();
+        });
 
         btnBt.setOnClickListener(v -> checkBluetooth());
         btnMic.setOnClickListener(v -> {
@@ -95,6 +114,31 @@ public class MainActivity extends AppCompatActivity {
 
         findViewById(R.id.btnUpdate).setOnClickListener(v ->
             updateHelper.checkForUpdate());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateBranchButtons();
+    }
+
+    private void updateBranchButtons() {
+        SharedPreferences prefs = getSharedPreferences("ai_prefs", MODE_PRIVATE);
+        btnBranch1.setText(prefs.getString("branch1_name", "Ветка 1"));
+        btnBranch2.setText(prefs.getString("branch2_name", "Ветка 2"));
+        btnBranch1.setAlpha(activeBranch == 1 ? 1.0f : 0.5f);
+        btnBranch2.setAlpha(activeBranch == 2 ? 1.0f : 0.5f);
+    }
+
+    private String getBranchName(int branch) {
+        SharedPreferences prefs = getSharedPreferences("ai_prefs", MODE_PRIVATE);
+        return prefs.getString("branch" + branch + "_name", "Ветка " + branch);
+    }
+
+    private String getActivePrompt() {
+        SharedPreferences prefs = getSharedPreferences("ai_prefs", MODE_PRIVATE);
+        return prefs.getString("branch" + activeBranch + "_prompt",
+            "Ты голосовой ИИ-ассистент. Отвечай кратко по-русски.");
     }
 
     private void checkBluetooth() {
@@ -161,8 +205,10 @@ public class MainActivity extends AppCompatActivity {
         audioRecord.startRecording();
         isRecording = true;
         btnMic.setText("⏹");
-        tvStatus.setText("Слушаю...");
+        tvStatus.setText("Слушаю... [" + getBranchName(activeBranch) + "]");
         tvStatus.setTextColor(getColor(R.color.status_listening));
+
+        final String prompt = getActivePrompt();
 
         executor.execute(() -> {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -180,7 +226,8 @@ public class MainActivity extends AppCompatActivity {
                 handler, tvStatus, tvTranscript, tvResponse,
                 this::saveError, this::speak,
                 getColor(R.color.status_idle),
-                getColor(R.color.status_speaking));
+                getColor(R.color.status_speaking),
+                prompt);
         });
     }
 
@@ -238,4 +285,4 @@ public class MainActivity extends AppCompatActivity {
         if (ttsPlayer != null) { ttsPlayer.release(); ttsPlayer = null; }
         executor.shutdown();
     }
-            }
+        }
