@@ -19,7 +19,31 @@
             android:textStyle="bold"
             android:gravity="center"
             android:paddingTop="8dp"
-            android:paddingBottom="16dp"/>
+            android:paddingBottom="8dp"/>
+
+        <!-- Кнопки веток -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingBottom="8dp">
+
+            <Button
+                android:id="@+id/btnBranch1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Ветка 1"
+                android:layout_marginEnd="8dp"/>
+
+            <Button
+                android:id="@+id/btnBranch2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Ветка 2"/>
+
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvBluetooth"
@@ -83,6 +107,7 @@
             android:padding="10dp"
             android:minHeight="100dp"/>
 
+        <!-- Нижние кнопки -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -102,7 +127,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="🖨 Принтер"
+                android:text="🖨"
                 android:layout_marginEnd="6dp"/>
 
             <Button
