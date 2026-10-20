@@ -22,7 +22,8 @@ public class ApiHelper {
             ErrorSaver errorSaver,
             Speaker speaker,
             int colorIdle,
-            int colorSpeaking) {
+            int colorSpeaking,
+            String prompt) {
 
         String aKey = prefs.getString("assembly_key", "");
         String gKey = prefs.getString("groq_key", "");
@@ -82,7 +83,7 @@ public class ApiHelper {
             }
 
             // 4. Отправить в Groq
-            String answer = askGroq(client, prefs, gKey, question, errorSaver);
+            String answer = askGroq(client, prefs, gKey, question, prompt, errorSaver);
             if (answer == null) {
                 handler.post(() -> tvStatus.setText("Ошибка Groq"));
                 return;
@@ -131,6 +132,7 @@ public class ApiHelper {
     private static String askGroq(
             OkHttpClient client, SharedPreferences prefs,
             String gKey, String question,
+            String prompt,
             ErrorSaver errorSaver) throws Exception {
 
         JSONObject req = new JSONObject();
@@ -139,8 +141,9 @@ public class ApiHelper {
         JSONArray messages = new JSONArray();
         JSONObject sys = new JSONObject();
         sys.put("role", "system");
-        sys.put("content", prefs.getString("system_prompt",
-            "Ты голосовой ИИ-ассистент. Отвечай кратко по-русски."));
+        sys.put("content", (prompt != null && !prompt.isEmpty())
+            ? prompt
+            : "Ты голосовой ИИ-ассистент. Отвечай кратко по-русски.");
         messages.put(sys);
 
         JSONObject usr = new JSONObject();
@@ -168,4 +171,4 @@ public class ApiHelper {
             .getJSONObject("message")
             .getString("content");
     }
-}
+                    }
