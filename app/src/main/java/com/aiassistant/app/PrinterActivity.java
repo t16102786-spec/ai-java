@@ -1,3 +1,4 @@
+
 package com.aiassistant.app;
 
 import android.Manifest;
@@ -14,7 +15,6 @@ import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -26,8 +26,10 @@ import android.os.Looper;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,166 +41,285 @@ public class PrinterActivity extends AppCompatActivity {
 
     private TextView tvStatus, tvTranscript, tvResponse, tvPrinter;
     private Button btnMic, btnConnect;
-    private ExecutorService executor = Executors.newSingleThreadExecutor();
-    private Handler handler = new Handler(Looper.getMainLooper());
+
+    private final ExecutorService executor =
+            Executors.newSingleThreadExecutor();
+    private final Handler handler =
+            new Handler(Looper.getMainLooper());
 
     private BluetoothGatt btGatt;
     private BluetoothGattCharacteristic printChar;
-    private boolean isConnected = false;
-
-    // Cat Printer BLE UUIDs
-    private static final List<UUID> SERVICE_UUIDS = Arrays.asList(
-        UUID.fromString("0000AE00-0000-1000-8000-00805F9B34FB"),
-        UUID.fromString("0000FF00-0000-1000-8000-00805F9B34FB"),
-        UUID.fromString("0000AB00-0000-1000-8000-00805F9B34FB")
-    );
-    private static final List<UUID> CHAR_UUIDS = Arrays.asList(
-        UUID.fromString("0000AE01-0000-1000-8000-00805F9B34FB"),
-        UUID.fromString("0000FF02-0000-1000-8000-00805F9B34FB"),
-        UUID.fromString("0000AB01-0000-1000-8000-00805F9B34FB")
-    );
-
     private BluetoothLeScanner scanner;
     private ScanCallback scanCallback;
+    private boolean isConnected = false;
+
+    private static final List<UUID> SERVICE_UUIDS = Arrays.asList(
+            UUID.fromString("0000AE00-0000-1000-8000-00805F9B34FB"),
+            UUID.fromString("0000FF00-0000-1000-8000-00805F9B34FB"),
+            UUID.fromString("0000AB00-0000-1000-8000-00805F9B34FB")
+    );
+
+    private static final List<UUID> CHAR_UUIDS = Arrays.asList(
+            UUID.fromString("0000AE01-0000-1000-8000-00805F9B34FB"),
+            UUID.fromString("0000FF02-0000-1000-8000-00805F9B34FB"),
+            UUID.fromString("0000AB01-0000-1000-8000-00805F9B34FB")
+    );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_printer);
 
-        tvStatus     = findViewById(R.id.tvStatus);
+        tvStatus = findViewById(R.id.tvStatus);
         tvTranscript = findViewById(R.id.tvTranscript);
-        tvResponse   = findViewById(R.id.tvResponse);
-        tvPrinter    = findViewById(R.id.tvPrinter);
-        btnMic       = findViewById(R.id.btnMic);
-        btnConnect   = findViewById(R.id.btnConnect);
+        tvResponse = findViewById(R.id.tvResponse);
+        tvPrinter = findViewById(R.id.tvPrinter);
+        btnMic = findViewById(R.id.btnMic);
+        btnConnect = findViewById(R.id.btnConnect);
 
-        ActivityCompat.requestPermissions(this, new String[]{
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        }, 1);
+        requestPermissionsIfNeeded();
 
         btnConnect.setOnClickListener(v -> scanAndConnect());
+
         btnMic.setOnClickListener(v -> {
-            if (!isConnected) { toast("Сначала подключи принтер"); return; }
+            if (!isConnected) {
+                toast("Сначала подключи принтер");
+                return;
+            }
             printText(tvResponse.getText().toString());
         });
 
         findViewById(R.id.btnSettings).setOnClickListener(v ->
-            startActivity(new Intent(this, SettingsActivity.class)));
+                startActivity(new Intent(this, SettingsActivity.class)));
+    }
+
+    private void requestPermissionsIfNeeded() {
+        List<String> permissions = new ArrayList<>();
+
+        if (ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.RECORD_AUDIO);
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            if (ActivityCompat.checkSelfPermission(this,
+                    Manifest.permission.BLUETOOTH_CONNECT)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.BLUETOOTH_CONNECT);
+            }
+            if (ActivityCompat.checkSelfPermission(this,
+                    Manifest.permission.BLUETOOTH_SCAN)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.BLUETOOTH_SCAN);
+            }
+        } else if (ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+
+        if (!permissions.isEmpty()) {
+            ActivityCompat.requestPermissions(this,
+                    permissions.toArray(new String[0]), 1);
+        }
     }
 
     private void scanAndConnect() {
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            toast("Нет разрешения Bluetooth"); return;
+        if (android.os.Build.VERSION.SDK_INT >= 31
+                && ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.BLUETOOTH_SCAN)
+                != PackageManager.PERMISSION_GRANTED) {
+            toast("Разреши доступ к Bluetooth");
+            requestPermissionsIfNeeded();
+            return;
         }
 
-        BluetoothManager bm = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        BluetoothAdapter bt = bm.getAdapter();
-        if (bt == null || !bt.isEnabled()) { toast("Включите Bluetooth"); return; }
+        BluetoothManager manager =
+                (BluetoothManager) getSystemService(
+                        Context.BLUETOOTH_SERVICE);
+        BluetoothAdapter adapter = manager.getAdapter();
 
-        tvPrinter.setText("🔍 Сканирую BLE устройства...");
-        scanner = bt.getBluetoothLeScanner();
+        if (adapter == null || !adapter.isEnabled()) {
+            toast("Включи Bluetooth");
+            return;
+        }
+
+        scanner = adapter.getBluetoothLeScanner();
+        if (scanner == null) {
+            toast("BLE-сканирование недоступно");
+            return;
+        }
+
+        tvPrinter.setText("Поиск принтера...");
 
         scanCallback = new ScanCallback() {
             @Override
-            public void onScanResult(int callbackType, ScanResult result) {
-                String name = result.getDevice().getName();
+            public void onScanResult(int type, ScanResult result) {
+                BluetoothDevice device = result.getDevice();
+                String name = device.getName();
+
                 if (name == null) return;
+
                 String n = name.toLowerCase();
-                if (n.contains("print") || n.contains("cat") || n.contains("mx")
-                        || n.contains("gb") || n.contains("fun") || n.contains("peripage")) {
+
+                if (n.contains("print") || n.contains("cat")
+                        || n.contains("mx") || n.contains("gb")
+                        || n.contains("fun") || n.contains("peripage")) {
                     stopScan();
-                    handler.post(() -> tvPrinter.setText("📡 Найден: " + name + ", подключаюсь..."));
-                    connectGatt(result.getDevice());
+                    handler.post(() ->
+                            tvPrinter.setText("Найден: " + name));
+                    connectGatt(device);
                 }
+            }
+
+            @Override
+            public void onScanFailed(int errorCode) {
+                handler.post(() ->
+                        tvPrinter.setText(
+                                "Ошибка поиска: " + errorCode));
             }
         };
 
-        scanner.startScan(scanCallback);
+        try {
+            scanner.startScan(scanCallback);
+        } catch (SecurityException e) {
+            toast("Нет разрешения Bluetooth");
+            return;
+        }
+
         handler.postDelayed(() -> {
             stopScan();
-            if (!isConnected)
-                handler.post(() -> tvPrinter.setText("❌ Принтер не найден"));
+            if (!isConnected) {
+                tvPrinter.setText("Принтер не найден");
+            }
         }, 10000);
     }
 
     private void stopScan() {
-        if (scanner != null && scanCallback != null) {
-            if (ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
-                scanner.stopScan(scanCallback);
-            }
+        if (scanner == null || scanCallback == null) return;
+
+        try {
+            scanner.stopScan(scanCallback);
+        } catch (SecurityException ignored) {
         }
+
+        scanCallback = null;
     }
 
     private void connectGatt(BluetoothDevice device) {
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) return;
+        if (android.os.Build.VERSION.SDK_INT >= 31
+                && ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.BLUETOOTH_CONNECT)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionsIfNeeded();
+            return;
+        }
 
-        btGatt = device.connectGatt(this, false, new BluetoothGattCallback() {
-            @Override
-            public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-                if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    isConnected = true;
-                    gatt.discoverServices();
-                    handler.post(() -> tvPrinter.setText("✅ Подключён"));
-                } else {
-                    isConnected = false;
-                    printChar = null;
-                    handler.post(() -> tvPrinter.setText("❌ Отключён"));
+        try {
+            btGatt = device.connectGatt(this, false,
+                    new BluetoothGattCallback() {
+                @Override
+                public void onConnectionStateChange(
+                        BluetoothGatt gatt, int status, int state) {
+                    if (status == BluetoothGatt.GATT_SUCCESS
+                            && state == BluetoothProfile.STATE_CONNECTED) {
+                        isConnected = true;
+                        gatt.discoverServices();
+                        handler.post(() ->
+                                tvPrinter.setText("Подключён"));
+                    } else {
+                        isConnected = false;
+                        printChar = null;
+                        handler.post(() ->
+                                tvPrinter.setText("Отключён"));
+                        gatt.close();
+                    }
                 }
-            }
 
-            @Override
-            public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-                for (BluetoothGattService service : gatt.getServices()) {
-                    if (SERVICE_UUIDS.contains(service.getUuid())) {
-                        for (BluetoothGattCharacteristic c : service.getCharacteristics()) {
+                @Override
+                public void onServicesDiscovered(
+                        BluetoothGatt gatt, int status) {
+                    if (status != BluetoothGatt.GATT_SUCCESS) return;
+
+                    for (BluetoothGattService service
+                            : gatt.getServices()) {
+                        if (!SERVICE_UUIDS.contains(service.getUuid())) {
+                            continue;
+                        }
+
+                        for (BluetoothGattCharacteristic c
+                                : service.getCharacteristics()) {
                             if (CHAR_UUIDS.contains(c.getUuid())) {
                                 printChar = c;
-                                handler.post(() -> tvPrinter.setText("🖨 Готов к печати"));
+                                handler.post(() ->
+                                        tvPrinter.setText(
+                                                "Принтер готов к печати"));
                                 return;
                             }
                         }
                     }
+
+                    handler.post(() ->
+                            tvPrinter.setText(
+                                    "Характеристика печати не найдена"));
                 }
-                handler.post(() -> tvPrinter.setText("⚠️ Характеристика не найдена"));
-            }
-        });
+            });
+        } catch (SecurityException e) {
+            toast("Нет разрешения Bluetooth");
+        }
     }
 
-    void printText(String text) {
+    private void printText(String text) {
         if (!isConnected || printChar == null || btGatt == null) {
-            toast("Принтер не готов"); return;
+            toast("Принтер не готов");
+            return;
         }
+
         if (text == null || text.trim().isEmpty()) {
-            toast("Нет текста для печати"); return;
+            toast("Нет текста для печати");
+            return;
         }
 
         executor.execute(() -> {
             try {
-                // Конвертируем текст в bitmap 384px шириной
-                Bitmap bmp = textToBitmap(text, 384);
-                List<byte[]> packets = buildPrintPackets(bmp);
+                Bitmap bitmap = textToBitmap(text, 384);
+                List<byte[]> packets = buildPrintPackets(bitmap);
 
                 for (byte[] packet : packets) {
-                    if (ActivityCompat.checkSelfPermission(PrinterActivity.this,
-                            Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) return;
-                    printChar.setValue(packet);
-                    btGatt.writeCharacteristic(printChar);
-                    Thread.sleep(20);
+                    if (isFinishing() || isDestroyed()) return;
+
+                    if (android.os.Build.VERSION.SDK_INT >= 31
+                            && ActivityCompat.checkSelfPermission(this,
+                            Manifest.permission.BLUETOOTH_CONNECT)
+                            != PackageManager.PERMISSION_GRANTED) {
+                        return;
+                    }
+
+                    BluetoothGatt gatt = btGatt;
+                    BluetoothGattCharacteristic characteristic = printChar;
+
+                    if (gatt == null || characteristic == null) return;
+
+                    characteristic.setValue(packet);
+                    boolean accepted = gatt.writeCharacteristic(
+                            characteristic);
+
+                    if (!accepted) {
+                        throw new IllegalStateException(
+                                "Bluetooth не принял пакет");
+                    }
+
+                    Thread.sleep(30);
                 }
 
-                handler.post(() -> {
-                    tvStatus.setText("✅ Напечатано!");
-                    tvStatus.setTextColor(getColor(R.color.status_idle));
-                });
+                handler.post(() ->
+                        tvStatus.setText("Команды отправлены принтеру"));
+
             } catch (Exception e) {
-                handler.post(() -> tvStatus.setText("❌ Ошибка печати: " + e.getMessage()));
+                handler.post(() ->
+                        tvStatus.setText("Ошибка печати: "
+                                + e.getMessage()));
             }
         });
     }
@@ -209,109 +330,137 @@ public class PrinterActivity extends AppCompatActivity {
         paint.setTextSize(24);
         paint.setAntiAlias(false);
 
-        String[] lines = text.split("\n");
-        int lineH = 30;
-        int height = Math.max(lineH * lines.length + 20, 60);
+        String[] lines = text.split("\\n");
+        int lineHeight = 30;
+        int height = Math.max(lineHeight * lines.length + 20, 60);
 
-        Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bmp);
+        Bitmap bitmap = Bitmap.createBitmap(
+                width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
         canvas.drawColor(Color.WHITE);
 
         for (int i = 0; i < lines.length; i++) {
-            canvas.drawText(lines[i], 5, 24 + i * lineH, paint);
+            canvas.drawText(lines[i], 5,
+                    24 + i * lineHeight, paint);
         }
-        return bmp;
+
+        return bitmap;
     }
 
-    private List<byte[]> buildPrintPackets(Bitmap bmp) {
+    private List<byte[]> buildPrintPackets(Bitmap bitmap) {
         List<byte[]> packets = new ArrayList<>();
         int width = 384;
         int bytesPerRow = width / 8;
 
-        // Init
-        packets.add(makeCmd((byte) 0xa3, new byte[]{0x00}));      // start printing
-        packets.add(makeCmd((byte) 0xa4, new byte[]{50}));         // set DPI 200
-        packets.add(makeCmd((byte) 0xbd, new byte[]{0x02}));       // set speed
-        packets.add(makeCmd((byte) 0xaf, new byte[]{0x00, 0x35})); // set energy
-        packets.add(makeCmd((byte) 0xa6, new byte[]{0xaa, (byte)0x55, 0x17, 0x38,
-            0x44, 0x5f, 0x5f, 0x5f, 0x44, 0x38, 0x2c}));          // start lattice
+        packets.add(makeCmd((byte) 0xA3, new byte[]{0x00}));
+        packets.add(makeCmd((byte) 0xA4, new byte[]{50}));
+        packets.add(makeCmd((byte) 0xBD, new byte[]{0x02}));
+        packets.add(makeCmd((byte) 0xAF,
+                new byte[]{0x00, 0x35}));
 
-        // Bitmap rows
-        for (int y = 0; y < bmp.getHeight(); y++) {
+        // Исправлено: явное преобразование 0xAA в byte.
+        packets.add(makeCmd((byte) 0xA6,
+                new byte[]{(byte) 0xAA, (byte) 0x55,
+                        0x17, 0x38, 0x44, 0x5F,
+                        0x5F, 0x5F, 0x44, 0x38, 0x2C}));
+
+        for (int y = 0; y < bitmap.getHeight(); y++) {
             byte[] row = new byte[bytesPerRow];
+
             for (int x = 0; x < width; x++) {
-                int pixel = bmp.getPixel(x, y);
-                int lum = (Color.red(pixel) + Color.green(pixel) + Color.blue(pixel)) / 3;
-                if (lum < 128) {
-                    int byteIdx = x / 8;
-                    int bitIdx = 7 - (x % 8);
-                    row[byteIdx] |= (byte)(1 << bitIdx);
+                int pixel = bitmap.getPixel(x, y);
+                int luminance = (Color.red(pixel)
+                        + Color.green(pixel)
+                        + Color.blue(pixel)) / 3;
+
+                if (luminance < 128) {
+                    int byteIndex = x / 8;
+                    int bitIndex = 7 - (x % 8);
+                    row[byteIndex] |= (byte) (1 << bitIndex);
                 }
             }
-            // Reverse bits per byte (Cat Printer protocol)
+
             for (int i = 0; i < row.length; i++) {
                 row[i] = reverseBits(row[i]);
             }
-            packets.add(makeCmd((byte) 0xa2, row));
+
+            packets.add(makeCmd((byte) 0xA2, row));
         }
 
-        // End
-        packets.add(makeCmd((byte) 0xa6, new byte[]{(byte)0xaa, (byte)0x55, 0x17, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17}));           // end lattice
-        packets.add(makeCmd((byte) 0xa0, new byte[]{0x00, 0x70})); // feed paper
+        packets.add(makeCmd((byte) 0xA6,
+                new byte[]{(byte) 0xAA, (byte) 0x55,
+                        0x17, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x17}));
+
+        packets.add(makeCmd((byte) 0xA0,
+                new byte[]{0x00, 0x70}));
 
         return packets;
     }
 
-    private byte[] makeCmd(byte cmd, byte[] payload) {
-        byte[] pkt = new byte[8 + payload.length];
-        pkt[0] = 0x51; pkt[1] = 0x78;
-        pkt[2] = cmd;
-        pkt[3] = 0x00;
-        pkt[4] = (byte) payload.length;
-        pkt[5] = 0x00;
-        System.arraycopy(payload, 0, pkt, 6, payload.length);
-        pkt[6 + payload.length] = crc8(payload);
-        pkt[7 + payload.length] = (byte) 0xff;
-        return pkt;
+    private byte[] makeCmd(byte command, byte[] payload) {
+        byte[] packet = new byte[8 + payload.length];
+
+        packet[0] = 0x51;
+        packet[1] = 0x78;
+        packet[2] = command;
+        packet[3] = 0x00;
+        packet[4] = (byte) payload.length;
+        packet[5] = 0x00;
+
+        System.arraycopy(payload, 0, packet, 6, payload.length);
+        packet[6 + payload.length] = crc8(payload);
+        packet[7 + payload.length] = (byte) 0xFF;
+
+        return packet;
     }
 
     private byte crc8(byte[] data) {
         int crc = 0;
-        for (byte b : data) {
-            crc ^= (b & 0xff);
+
+        for (byte value : data) {
+            crc ^= value & 0xFF;
+
             for (int i = 0; i < 8; i++) {
-                if ((crc & 0x80) != 0) crc = (crc << 1) ^ 0x07;
-                else crc <<= 1;
+                if ((crc & 0x80) != 0) {
+                    crc = (crc << 1) ^ 0x07;
+                } else {
+                    crc <<= 1;
+                }
             }
         }
-        return (byte)(crc & 0xff);
+
+        return (byte) (crc & 0xFF);
     }
 
-    private byte reverseBits(byte b) {
-        int v = b & 0xff;
-        int r = 0;
+    private byte reverseBits(byte value) {
+        int v = value & 0xFF;
+        int result = 0;
+
         for (int i = 0; i < 8; i++) {
-            r = (r << 1) | (v & 1);
+            result = (result << 1) | (v & 1);
             v >>= 1;
         }
-        return (byte) r;
+
+        return (byte) result;
     }
 
-    private void toast(String msg) {
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    private void toast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         stopScan();
-        executor.shutdown();
+        executor.shutdownNow();
+
         if (btGatt != null) {
-            if (ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+            try {
                 btGatt.close();
+            } catch (Exception ignored) {
             }
+            btGatt = null;
         }
     }
-}
+                }
